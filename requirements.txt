@@ -1,0 +1,98 @@
+# ==============================================================================
+# CloneShield - Requirements (Locked Versions)
+# Python 3.10.11
+#
+# IMPORTANT: PyTorch must be installed separately for GPU support.
+# See gpu_run_guide.md for instructions.
+# ==============================================================================
+
+# --- PyTorch (GPU) - Install FIRST via pip with CUDA index ---
+# Do NOT install from this file, use the command in gpu_run_guide.md instead:
+#   pip install torch==2.4.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu121
+# torch==2.4.0
+# torchaudio==2.4.0
+
+# --- TTS (Coqui TTS with XttsV2) ---
+TTS==0.22.0
+coqpit==0.0.17
+trainer==0.0.36
+
+# --- Core ML ---
+numpy==1.22.0
+scipy==1.11.4
+scikit-learn==1.7.2
+pandas==1.5.3
+
+# --- Audio Processing ---
+librosa==0.10.0
+soundfile==0.13.1
+soxr==1.0.0
+audioread==3.1.0
+
+# --- Hugging Face ---
+transformers==4.44.2
+tokenizers==0.19.1
+huggingface_hub==0.36.2
+safetensors==0.7.0
+accelerate==1.12.0
+
+# --- NLP / Text Processing (TTS dependencies) ---
+spacy==3.8.11
+spacy-legacy==3.0.12
+spacy-loggers==1.0.5
+nltk==3.9.2
+num2words==0.5.14
+inflect==7.5.0
+pypinyin==0.55.0
+jieba==0.42.1
+jamo==0.4.1
+hangul-romanize==0.1.0
+bangla==0.0.5
+bnnumerizer==0.0.2
+bnunicodenormalizer==0.1.7
+g2pkk==0.1.2
+anyascii==0.3.3
+gruut==2.2.3
+gruut-ipa==0.13.0
+gruut_lang_de==2.0.1
+gruut_lang_en==2.0.1
+gruut_lang_es==2.0.1
+gruut_lang_fr==2.0.2
+Unidecode==1.4.0
+pysbd==0.3.4
+dateparser==1.1.8
+python-crfsuite==0.9.12
+
+# --- Visualization / Logging ---
+matplotlib==3.8.4
+tensorboard==2.20.0
+tensorboard-data-server==0.7.2
+tqdm==4.67.3
+rich==14.3.2
+
+# --- Networking ---
+requests==2.32.5
+urllib3==2.6.3
+aiohttp==3.13.3
+httpx==0.28.1
+
+# --- Misc Dependencies ---
+einops==0.8.2
+encodec==0.1.1
+pydantic==2.12.5
+PyYAML==6.0.3
+Jinja2==3.1.6
+Flask==3.1.3
+regex==2026.1.15
+filelock==3.20.0
+fsspec==2025.12.0
+packaging==26.0
+typing_extensions==4.15.0
+sympy==1.14.0
+networkx==2.8.8
+numba==0.64.0
+pillow==12.0.0
+psutil==7.2.2
+Cython==3.2.4
+Markdown==3.10.2
+protobuf==6.33.5

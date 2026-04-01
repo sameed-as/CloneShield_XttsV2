@@ -1,0 +1,11 @@
+# Explicitly use CPU-only PyTorch wheels to stay under Render's 512MB RAM constraint
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# Core Dependencies
+torch==2.6.0+cpu
+torchaudio==2.6.0+cpu
+
+# Web server dependencies
+fastapi>=0.100.0
+uvicorn>=0.23.0
+python-multipart>=0.0.6

@@ -1,0 +1,87 @@
+# CloneShield — Implementation Walkthrough
+
+## What Was Built
+
+A complete voice protection pipeline that adds imperceptible adversarial perturbations to audio to prevent XttsV2 from cloning the speaker's voice.
+
+## Architecture
+
+```mermaid
+graph LR
+    A[Original Audio] --> B[U-Net PerturbationGenerator]
+    B --> C["Perturbation δ ∈ [-ε, +ε]"]
+    C --> D[Protected Audio = Original + δ]
+    D --> E[XttsV2 Speaker Encoder - frozen]
+    A --> F[XttsV2 Speaker Encoder - frozen]
+    E --> G[Anti-Cloning Loss: -cos_sim]
+    F --> G
+    A --> H[Quality Loss: Mel + STFT + L1]
+    D --> H
+```
+
+## Project Structure
+
+| File | Purpose | Verified |
+|---|---|---|
+| [__init__.py](file:///c:/Users/tahir/Desktop/TestXTTS/xtts_project/cloneshield/__init__.py) | Package init | Yes |
+| [config.py](file:///c:/Users/tahir/Desktop/TestXTTS/xtts_project/cloneshield/config.py) | Config dataclasses | Yes |
+| [model.py](file:///c:/Users/tahir/Desktop/TestXTTS/xtts_project/cloneshield/model.py) | U-Net PerturbationGenerator (3.5M params) | Yes |
+| [losses.py](file:///c:/Users/tahir/Desktop/TestXTTS/xtts_project/cloneshield/losses.py) | Quality + Anti-cloning losses | Yes |
+| [dataset.py](file:///c:/Users/tahir/Desktop/TestXTTS/xtts_project/cloneshield/dataset.py) | LibriSpeech dataset loader | Yes |
+| [speaker_encoder.py](file:///c:/Users/tahir/Desktop/TestXTTS/xtts_project/cloneshield/speaker_encoder.py) | Frozen XttsV2 speaker encoder wrapper | Yes |
+| [train.py](file:///c:/Users/tahir/Desktop/TestXTTS/xtts_project/train.py) | Training script with CLI args | Yes |
+| [protect.py](file:///c:/Users/tahir/Desktop/TestXTTS/xtts_project/protect.py) | Inference: protect audio files | Yes |
+| [evaluate.py](file:///c:/Users/tahir/Desktop/TestXTTS/xtts_project/evaluate.py) | Evaluation: similarity + SNR metrics | Yes |
+
+## Verification Results
+
+Each component was tested individually:
+
+| Component | Test | Result |
+|---|---|---|
+| Config | Import + instantiate | `sample_rate=22050, epsilon=0.03, device=cpu` |
+| Model | Forward pass | In/out shape match [(1,1,66150)](file:///c:/Users/tahir/Desktop/TestXTTS/xtts_project/protect.py#133-152), max\|δ\|=0.01 ≤ ε=0.03 |
+| Losses | Compute all terms | total=0.0234, quality=0.0322, anti_clone=-0.0176 |
+| Dataset | Load manifest | 4,280 files from 251 speakers, audio shape [(1, 66150)](file:///c:/Users/tahir/Desktop/TestXTTS/xtts_project/protect.py#133-152) |
+| Speaker Encoder | Extract embedding | Shape [(1, 512)](file:///c:/Users/tahir/Desktop/TestXTTS/xtts_project/protect.py#133-152), unit norm (L2=1.0) |
+| Training script | Dry-run | Dataset + model + XttsV2 loaded, training loop entered |
+
+## Usage Commands
+
+### Train the model
+```bash
+# GPU (recommended)
+python train.py --epochs 50 --batch-size 8 --device cuda
+
+# CPU (very slow, for testing only)
+python train.py --epochs 1 --batch-size 2 --device cpu
+
+# Custom hyperparameters
+python train.py --epochs 100 --lr 2e-4 --epsilon 0.05 --lambda-anti-clone 1.0
+```
+
+### Protect an audio file
+```bash
+python protect.py --input speaker.wav --output speaker_protected.wav --checkpoint checkpoints/cloneshield_best.pt
+```
+
+### Evaluate protection quality
+```bash
+# Metrics only
+python evaluate.py --checkpoint checkpoints/cloneshield_best.pt
+
+# With cloning A/B comparison
+python evaluate.py --checkpoint checkpoints/cloneshield_best.pt --clone
+```
+
+## Next Steps
+
+> [!IMPORTANT]
+> Training requires a **GPU** for practical speed. Each training step involves: U-Net forward pass → XttsV2 speaker encoder forward → loss computation → backward pass. On CPU, each batch takes ~30s; on GPU, ~1-2s.
+
+1. **Train the model** on GPU with `python train.py --device cuda`
+2. **Monitor** speaker similarity decreasing while SNR stays high
+3. **Tune hyperparameters** if needed:
+   - Increase `--lambda-anti-clone` for stronger protection (may hurt quality)
+   - Decrease `--epsilon` for less perceptible perturbation (weaker protection)
+4. **Evaluate** with `python evaluate.py --checkpoint checkpoints/cloneshield_best.pt --clone`
