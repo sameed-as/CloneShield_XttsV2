@@ -21,7 +21,6 @@ config = None
 
 @app.on_event("startup")
 def load_models():
-    torchaudio.set_audio_backend("soundfile")
     global model, filter_model, config
     print("Loading models into memory...")
     
@@ -63,7 +62,7 @@ async def protect_endpoint(
         
     try:
         # Load audio using torchaudio
-        waveform, sr = torchaudio.load(in_path)
+        waveform, sr = torchaudio.load(in_path, backend="soundfile")
         
         # Resample to model sample rate if needed
         if sr != config.sample_rate:
@@ -135,7 +134,7 @@ async def protect_endpoint(
         protected = protected.squeeze(0) * max_amp
         
         # Save output to temp path
-        torchaudio.save(out_path, protected.cpu(), sr)
+        torchaudio.save(out_path, protected.cpu(), sr, backend="soundfile")
         
         # Cleanup routine
         def cleanup():
