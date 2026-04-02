@@ -142,7 +142,7 @@ async def protect_endpoint(
         protected = protected.squeeze(0) * max_amp
         
         # Save output to temp path
-        audio_out = protected.cpu().squeeze(0)
+        audio_out = protected.cpu()
         if audio_out.shape[0] == 1:
             audio_out = audio_out.squeeze(0).numpy()
         else:
