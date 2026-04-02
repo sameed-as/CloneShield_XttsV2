@@ -61,8 +61,16 @@ async def protect_endpoint(
         f.write(await file.read())
         
     try:
-        # Load audio using torchaudio
-        waveform, sr = torchaudio.load(in_path, backend="soundfile")
+        import soundfile as sf
+        import numpy as np
+        
+        # Load audio strictly with soundfile to bypass torchaudio FFmpeg dependency issues
+        audio_data, sr = sf.read(in_path)
+        
+        if len(audio_data.shape) == 1:
+            waveform = torch.from_numpy(audio_data).unsqueeze(0).float()
+        else:
+            waveform = torch.from_numpy(audio_data).transpose(0, 1).float()
         
         # Resample to model sample rate if needed
         if sr != config.sample_rate:
@@ -134,7 +142,13 @@ async def protect_endpoint(
         protected = protected.squeeze(0) * max_amp
         
         # Save output to temp path
-        torchaudio.save(out_path, protected.cpu(), sr, backend="soundfile")
+        audio_out = protected.cpu().squeeze(0)
+        if audio_out.shape[0] == 1:
+            audio_out = audio_out.squeeze(0).numpy()
+        else:
+            audio_out = audio_out.transpose(0, 1).numpy()
+            
+        sf.write(out_path, audio_out, sr, subtype='PCM_16')
         
         # Cleanup routine
         def cleanup():
