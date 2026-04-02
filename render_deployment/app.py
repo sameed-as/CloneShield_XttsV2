@@ -3,7 +3,7 @@ import io
 import tempfile
 import torch
 import torchaudio
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
@@ -21,6 +21,7 @@ config = None
 
 @app.on_event("startup")
 def load_models():
+    torchaudio.set_audio_backend("soundfile")
     global model, filter_model, config
     print("Loading models into memory...")
     
@@ -47,7 +48,10 @@ def load_models():
         print("WARNING: Filter model not found!")
 
 @app.post("/protect")
-async def protect_endpoint(file: UploadFile = File(...)):
+async def protect_endpoint(
+    file: UploadFile = File(...),
+    filter_strength: float = Form(1.0, ge=0.0, le=1.0)
+):
     # Create temp directory for incoming and outgoing
     # Using tempfile ensures isolation and automatic cleanup can be scheduled
     temp_dir = tempfile.mkdtemp()
@@ -92,7 +96,8 @@ async def protect_endpoint(file: UploadFile = File(...)):
                 
                 if filter_model is not None:
                     mask = filter_model(padded, perturbation)
-                    perturbation = perturbation * mask
+                    blended_mask = 1.0 - filter_strength * (1.0 - mask)
+                    perturbation = perturbation * blended_mask
                 
                 protected = padded + perturbation
                 protected = protected[:, :, :original_length]
@@ -112,7 +117,8 @@ async def protect_endpoint(file: UploadFile = File(...)):
                     
                     if filter_model is not None:
                         mask = filter_model(chunk, perturbation)
-                        perturbation = perturbation * mask
+                        blended_mask = 1.0 - filter_strength * (1.0 - mask)
+                        perturbation = perturbation * blended_mask
                         
                     prot_chunk = chunk + perturbation
                     prot_chunk = prot_chunk[:, :, :end - start]
