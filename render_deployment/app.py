@@ -178,16 +178,23 @@ async def protect_endpoint(
             pesq_score = 0.0
             stoi_score = 0.0
             
-        return FileResponse(
-            out_path, 
-            media_type="audio/wav", 
-            filename="speaker_protected.wav",
-            headers={
-                "X-PESQ-Score": str(round(float(pesq_score), 3)),
-                "X-STOI-Score": str(round(float(stoi_score), 3))
-            },
-            background=BackgroundTask(cleanup)
-        )
+        import base64
+        with open(out_path, "rb") as f:
+            encoded_string = base64.b64encode(f.read()).decode("utf-8")
+            
+        # Clean up files manually since we are not using BackgroundTask anymore
+        try:
+            if os.path.exists(in_path): os.remove(in_path)
+            if os.path.exists(out_path): os.remove(out_path)
+            if os.path.exists(temp_dir): os.rmdir(temp_dir)
+        except Exception as e:
+            print(f"Cleanup error: {e}")
+            
+        return {
+            "pesq_score": round(float(pesq_score), 3),
+            "stoi_score": round(float(stoi_score), 3),
+            "audio_base64": encoded_string
+        }
         
     except Exception as e:
         if os.path.exists(in_path): os.remove(in_path)
