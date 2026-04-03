@@ -161,7 +161,6 @@ async def protect_endpoint(
             
         try:
             from pesq import pesq
-            from pystoi import stoi
             # Resample both tensors to 16k temporarily for standard scoring
             resampler_16k = torchaudio.transforms.Resample(config.sample_rate, 16000)
             orig_16k = resampler_16k(waveform.cpu()).squeeze(0).numpy()
@@ -172,11 +171,9 @@ async def protect_endpoint(
             if len(prot_16k.shape) > 1: prot_16k = prot_16k[0]
                 
             pesq_score = pesq(16000, orig_16k, prot_16k, 'wb')
-            stoi_score = stoi(orig_16k, prot_16k, 16000, extended=False)
         except Exception as e:
             print(f"Scoring framework exception: {e}")
             pesq_score = 0.0
-            stoi_score = 0.0
             
         import base64
         with open(out_path, "rb") as f:
@@ -192,7 +189,6 @@ async def protect_endpoint(
             
         return {
             "pesq_score": round(float(pesq_score), 3),
-            "stoi_score": round(float(stoi_score), 3),
             "audio_base64": encoded_string
         }
         

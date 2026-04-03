@@ -19,8 +19,7 @@ def test_json_pipeline():
         return
 
     print(f"\n--- Protection Score Metrics ---")
-    print(f"✅ PESQ Score: {data['pesq_score']}")
-    print(f"✅ STOI Score: {data['stoi_score']}\n")
+    print(f"✅ PESQ Score: {data['pesq_score']}\n")
 
     # Extract base64 and securely decode
     audio_bytes = base64.b64decode(data['audio_base64'])
