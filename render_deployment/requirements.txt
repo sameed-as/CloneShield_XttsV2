@@ -13,3 +13,4 @@ soundfile>=0.12.1
 pesq
 pystoi
 scipy
+requests

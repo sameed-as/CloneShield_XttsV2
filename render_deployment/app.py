@@ -195,6 +195,67 @@ async def protect_endpoint(
         if os.path.exists(temp_dir): os.rmdir(temp_dir)
         return {"error": str(e)}
 
+@app.post("/clone")
+async def proxy_clone(
+    speaker: UploadFile = File(...),
+    text: str = Form("Hello, this is a test clone.", description="Text for the voice clone")
+):
+    import requests
+    ngrok_url = os.environ.get("NGROK_URL")
+    if not ngrok_url:
+        return {"error": "NGROK_URL environment variable is not set. Please set it in the Render Dashboard."}
+        
+    ngrok_url = ngrok_url.rstrip("/")
+    target_endpoint = f"{ngrok_url}/clone"
+    
+    temp_dir = tempfile.mkdtemp()
+    in_path = os.path.join(temp_dir, "speaker.wav")
+    out_path = os.path.join(temp_dir, "cloned_output.wav")
+    
+    # Save the incoming file to temp
+    with open(in_path, "wb") as f:
+        f.write(await speaker.read())
+        
+    try:
+        # Construct a multipart payload to send back to the user's Desktop PC
+        with open(in_path, "rb") as f:
+            files = {"speaker": (speaker.filename or "speaker.wav", f, "audio/wav")}
+            data = {"text": text}
+            
+            # Ngrok free tier securely blocks automated requests unless this specific bypass header is included
+            headers = {"ngrok-skip-browser-warning": "true"}
+            
+            # Proxy the audio to the Desktop PC over ngrok
+            response = requests.post(target_endpoint, files=files, data=data, headers=headers)
+            
+        if response.status_code != 200:
+            return {"error": f"Local PC returned Error {response.status_code}: {response.text}"}
+            
+        # Secure the returned WAV file from the PC
+        with open(out_path, "wb") as out_f:
+            out_f.write(response.content)
+            
+        def cleanup():
+            try:
+                if os.path.exists(in_path): os.remove(in_path)
+                if os.path.exists(out_path): os.remove(out_path)
+                if os.path.exists(temp_dir): os.rmdir(temp_dir)
+            except Exception as e:
+                print(f"Cleanup error: {e}")
+                
+        return FileResponse(
+            out_path, 
+            media_type="audio/wav", 
+            filename="cloned_audio.wav",
+            background=BackgroundTask(cleanup)
+        )
+        
+    except Exception as e:
+        if os.path.exists(in_path): os.remove(in_path)
+        if os.path.exists(out_path): os.remove(out_path)
+        if os.path.exists(temp_dir): os.rmdir(temp_dir)
+        return {"error": f"Failed reaching Desktop PC: {str(e)}"}
+
 if __name__ == "__main__":
     import uvicorn
     # Make sure we bind directly to 0.0.0.0 and dynamically assign the PORT variable as expected by Render
