@@ -9,7 +9,7 @@ def test_json_pipeline():
     response = requests.post(
         "https://fakeless-api.onrender.com/protect",
         files={"file": open("sound_samples/input/speaker.wav", "rb")},
-        data={"filter_strength": 0.5}
+        data={"filter_strength": 1}
     )
 
     data = response.json()
@@ -17,7 +17,7 @@ def test_json_pipeline():
     if "error" in data:
         print("Error:", data["error"])
         return
-        
+
 
     print(f"\n--- Protection Score Metrics ---")
     print(f"✅ PESQ Score:       {data['pesq_score']}")
