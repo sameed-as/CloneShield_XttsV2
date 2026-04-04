@@ -254,20 +254,23 @@ async def proxy_clone(
         with open(out_path, "wb") as out_f:
             out_f.write(response.content)
             
+        import base64
+        with open(out_path, "rb") as f:
+            encoded_string = base64.b64encode(f.read()).decode("utf-8")
+            
         def cleanup():
-            try:
-                if os.path.exists(in_path): os.remove(in_path)
-                if os.path.exists(out_path): os.remove(out_path)
-                if os.path.exists(temp_dir): os.rmdir(temp_dir)
-            except Exception as e:
-                print(f"Cleanup error: {e}")
-                
-        return FileResponse(
-            out_path, 
-            media_type="audio/wav", 
-            filename="cloned_audio.wav",
-            background=BackgroundTask(cleanup)
-        )
+            pass # BackgroundTask not used here anymore, run manual cleanup
+            
+        try:
+            if os.path.exists(in_path): os.remove(in_path)
+            if os.path.exists(out_path): os.remove(out_path)
+            if os.path.exists(temp_dir): os.rmdir(temp_dir)
+        except Exception as e:
+            print(f"Cleanup error: {e}")
+            
+        return {
+            "audio_base64": encoded_string
+        }
         
     except Exception as e:
         if os.path.exists(in_path): os.remove(in_path)
