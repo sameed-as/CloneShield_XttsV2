@@ -175,6 +175,20 @@ async def protect_endpoint(
             print(f"Scoring framework exception: {e}")
             pesq_score = 0.0
             
+        # Natively calculate PyTorch SNR and Perturbation metrics (Zero extra memory)
+        try:
+            # We scale the waveform back to its original amplitude for accurate comparison
+            original_scaled = waveform.cpu() * max_amp
+            delta = protected.cpu() - original_scaled
+            
+            snr_tensor = 10 * torch.log10(original_scaled.pow(2).mean() / delta.pow(2).mean().clamp(min=1e-10))
+            snr_score = float(snr_tensor.item())
+            max_perturbation = float(delta.abs().max().item())
+        except Exception as e:
+            print(f"PyTorch metric error: {e}")
+            snr_score = 0.0
+            max_perturbation = 0.0
+            
         import base64
         with open(out_path, "rb") as f:
             encoded_string = base64.b64encode(f.read()).decode("utf-8")
@@ -189,6 +203,8 @@ async def protect_endpoint(
             
         return {
             "pesq_score": round(float(pesq_score), 3),
+            "snr_score": round(float(snr_score), 3),
+            "max_perturbation": round(float(max_perturbation), 5),
             "audio_base64": encoded_string
         }
         

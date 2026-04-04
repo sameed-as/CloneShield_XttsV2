@@ -17,9 +17,12 @@ def test_json_pipeline():
     if "error" in data:
         print("Error:", data["error"])
         return
+        
 
     print(f"\n--- Protection Score Metrics ---")
-    print(f"✅ PESQ Score: {data['pesq_score']}\n")
+    print(f"✅ PESQ Score:       {data['pesq_score']}")
+    print(f"✅ SNR (dB):         {data['snr_score']}")
+    print(f"✅ Max Perturbation: {data['max_perturbation']}\n")
 
     # Extract base64 and securely decode
     audio_bytes = base64.b64decode(data['audio_base64'])
