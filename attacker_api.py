@@ -74,3 +74,5 @@ if __name__ == "__main__":
     import uvicorn
     # Make sure we bind directly to 127.0.0.1 for secure local use
     uvicorn.run("attacker_api:app", host="127.0.0.1", port=8000)
+#uvicorn attacker_api:app --host 127.0.0.1 --port 8000
+# then ngrok http 8000

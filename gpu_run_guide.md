@@ -112,6 +112,11 @@ Model OK on GPU | Output shape: torch.Size([1, 1, 66150]) | Max perturbation: 0.
 python train.py --epochs 50 --batch-size 8 --device cuda
 ```
 
+if you want to train on your own dataset
+```bash
+python train.py --epochs 50 --batch-size 8 --device cuda --data-root C:\Users\DotNet\Desktop\FYP\FYP-FakeLess\data\librispeech_prepared
+```
+
 This will:
 - Load 4,280 training audio files from 251 speakers
 - Train the perturbation generator for 50 epochs
@@ -158,7 +163,7 @@ Expected training time (approximate):
 After training, protect any WAV file:
 
 ```bash
-python protect.py --input sound_samples/input/speaker.wav --output sound_samples/input/speaker_protected.wav --checkpoint checkpoints/cloneshield_best.pt --filter-checkpoint checkpoints_filter/filter_best.pt --device cuda
+python protect.py --input sound_samples/input/speaker.wav --output sound_samples/input/speaker_protected.wav --checkpoint checkpoints/cloneshield_best.pt --filter-checkpoint checkpoints_filter/filter_best.pt --filter-strength 1.0 --device cuda
 ```
 
 Output will show:

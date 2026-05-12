@@ -19,7 +19,8 @@ from cloneshield.filter_model import FilterNet
 
 
 def protect_audio(input_path: str, output_path: str, checkpoint_path: str,
-                  device: str = "cpu", epsilon: float = None, filter_checkpoint: str = None):
+                  device: str = "cpu", epsilon: float = None, filter_checkpoint: str = None, 
+                  filter_strength: float = 1.0):
     """
     Protect a single audio file by adding adversarial perturbation.
 
@@ -48,7 +49,7 @@ def protect_audio(input_path: str, output_path: str, checkpoint_path: str,
     model = PerturbationGenerator(config).to(device)
     model.load_state_dict(ckpt["model_state_dict"])
     model.eval()
-    print(f"Model loaded (ε={config.epsilon:.4f})")
+    print(f"Model loaded (eps={config.epsilon:.4f})")
 
     filter_model = None
     if filter_checkpoint and os.path.exists(filter_checkpoint):
@@ -99,8 +100,9 @@ def protect_audio(input_path: str, output_path: str, checkpoint_path: str,
             
             if filter_model is not None:
                 mask = filter_model(padded, perturbation)
-                perturbation = perturbation * mask
-                print(f"Global mask applied, mean: {mask.mean().item():.4f}")
+                blended_mask = 1.0 - filter_strength * (1.0 - mask)
+                perturbation = perturbation * blended_mask
+                print(f"Global mask applied, strength: {filter_strength:.2f}, target mean: {blended_mask.mean().item():.4f}")
                 
             raw_protected = padded + raw_perturbation
             raw_protected = raw_protected[:, :, :original_length]
@@ -127,7 +129,8 @@ def protect_audio(input_path: str, output_path: str, checkpoint_path: str,
                 
                 if filter_model is not None:
                     mask = filter_model(chunk, perturbation)
-                    perturbation = perturbation * mask
+                    blended_mask = 1.0 - filter_strength * (1.0 - mask)
+                    perturbation = perturbation * blended_mask
                     
                 raw_prot_chunk = chunk + raw_perturbation
                 raw_prot_chunk = raw_prot_chunk[:, :, :end - start]
@@ -173,18 +176,39 @@ def protect_audio(input_path: str, output_path: str, checkpoint_path: str,
 
     # Report stats
     delta = (protected.cpu() - waveform * max_amp)
-    snr = 10 * torch.log10(
-        (waveform * max_amp).pow(2).mean() / delta.pow(2).mean().clamp(min=1e-10)
-    )
-    print(f"Cleaned Perturbation SNR: {snr.item():.1f} dB")
-    print(f"Cleaned Max perturbation: {delta.abs().max().item():.6f}")
+    snr = 10 * torch.log10((waveform * max_amp).pow(2).mean() / delta.pow(2).mean().clamp(min=1e-10))
+    cosine_sim = torch.nn.functional.cosine_similarity((waveform * max_amp).flatten(), protected.cpu().flatten(), dim=0)
+
+    print(f"\n--- Output Audio Metrics ---")
+    print(f"SNR (dB):         {snr.item():.1f}")
+    print(f"Cosine Sim:       {cosine_sim.item():.4f}")
+    print(f"Max Perturbation: {delta.abs().max().item():.6f}")
+    
+    try:
+        from pesq import pesq
+        from pystoi import stoi
+        resampler_16k = torchaudio.transforms.Resample(config.sample_rate, 16000)
+        orig_16k = resampler_16k(waveform.cpu()).squeeze(0).numpy()
+        prot_16k = resampler_16k(protected.cpu()).squeeze(0).numpy()
+        
+        if len(orig_16k.shape) > 1: orig_16k = orig_16k[0]
+        if len(prot_16k.shape) > 1: prot_16k = prot_16k[0]
+            
+        pesq_score = pesq(16000, orig_16k, prot_16k, 'wb')
+        stoi_score = stoi(orig_16k, prot_16k, 16000, extended=False)
+        print(f"PESQ Score:       {pesq_score:.3f}")
+        print(f"STOI Score:       {stoi_score:.3f}")
+    except ImportError:
+        print("Note: Install 'pesq' and 'pystoi' packages to view perceptual evaluation metrics.")
+        
+    print("----------------------------\n")
     
     if filter_model is not None:
         raw_delta = (raw_protected.cpu() - waveform * max_amp)
         raw_snr = 10 * torch.log10(
             (waveform * max_amp).pow(2).mean() / raw_delta.pow(2).mean().clamp(min=1e-10)
         )
-        print(f"Raw Perturbation SNR: {raw_snr.item():.1f} dB")
+        print(f"Raw (Unfiltered) Perturbation SNR: {raw_snr.item():.1f} dB")
 
 
 def main():
@@ -197,6 +221,8 @@ def main():
                         help="Override perturbation budget")
     parser.add_argument("--filter-checkpoint", "-f", default="checkpoints_filter/filter_best.pt",
                         help="Optional Path to trained FilterNet checkpoint")
+    parser.add_argument("--filter-strength", "-s", type=float, default=1.0,
+                        help="Strength of FilterNet mask (0.0 to 1.0, defaults to 1.0)")
     args = parser.parse_args()
 
     if not os.path.exists(args.input):
@@ -207,7 +233,7 @@ def main():
         print(f"Error: Checkpoint not found: {args.checkpoint}")
         return
 
-    protect_audio(args.input, args.output, args.checkpoint, args.device, args.epsilon, args.filter_checkpoint)
+    protect_audio(args.input, args.output, args.checkpoint, args.device, args.epsilon, args.filter_checkpoint, args.filter_strength)
 
 
 if __name__ == "__main__":
